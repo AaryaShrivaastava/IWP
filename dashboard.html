@@ -4,101 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy-First Analytics Dashboard</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f3f4f6;
         }
-        .container {
-            max-width: 900px;
-        }
-        .card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-        }
-        .list-item:not(:last-child) {
-            border-bottom: 1px solid #e5e7eb;
-        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-
-    <div id="app" class="container w-full mx-auto space-y-8">
-        <!-- Dashboard Header -->
-        <header class="text-center">
-            <h1 class="text-4xl font-bold text-gray-800">Analytics Dashboard</h1>
-            <p class="text-gray-500 mt-2">Privacy-first web analytics at a glance.</p>
-            <div id="user-info" class="mt-4 text-sm text-gray-400">
-                <span id="user-id-display">Connecting...</span>
-            </div>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-6 md:p-10">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">Analytics Dashboard</h1>
+            <p class="text-gray-500">Secure, privacy-first website insights.</p>
         </header>
 
-        <!-- Main Dashboard Content -->
-        <main class="space-y-6">
-
-            <!-- Total Views Card -->
-            <div class="card">
-                <h2 class="text-2xl font-semibold text-gray-800">Total Site Visits</h2>
-                <div class="mt-4 text-5xl font-bold text-blue-600" id="total-views">
-                    0
+        <section class="mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-indigo-50 border-l-4 border-indigo-500 rounded-lg p-6 shadow-sm">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">Total Views</h2>
+                    <p id="totalViews" class="text-4xl font-bold text-indigo-700">0</p>
+                </div>
+                <div class="bg-green-50 border-l-4 border-green-500 rounded-lg p-6 shadow-sm">
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">User ID</h2>
+                    <p id="userIdDisplay" class="text-sm font-mono text-green-700 break-all">Authenticating...</p>
                 </div>
             </div>
+        </section>
 
-            <!-- Most Visited Pages Card -->
-            <div class="card">
-                <h2 class="text-2xl font-semibold text-gray-800">Most Visited Pages</h2>
-                <ul id="pages-list" class="mt-4 divide-y divide-gray-200">
-                    <!-- Page items will be dynamically inserted here -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Most Visited Pages</h2>
+            <div id="pagesList" class="bg-gray-50 rounded-lg shadow-inner p-4">
+                <ul id="pageListViews" class="divide-y divide-gray-200">
+                    <li class="py-3 text-center text-gray-400">Loading page views...</li>
                 </ul>
-                <div id="loading" class="text-center text-gray-500 mt-4 hidden">
-                    <p>Loading analytics data...</p>
-                </div>
-                <div id="no-data" class="text-center text-gray-500 mt-4 hidden">
-                    <p>No analytics data available yet. Start tracking to see results!</p>
-                </div>
             </div>
+        </section>
 
-        </main>
+        <footer class="text-center text-gray-500 text-sm">
+            <p>&copy; 2024 Privacy-First Analytics. All rights reserved.</p>
+        </footer>
     </div>
 
-    <!-- Firebase SDK Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        setLogLevel('debug'); // Enable debug logging for Firestore
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, query, orderBy, getDocs, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        const totalViewsEl = document.getElementById('total-views');
-        const pagesListEl = document.getElementById('pages-list');
-        const loadingEl = document.getElementById('loading');
-        const noDataEl = document.getElementById('no-data');
-        const userIdDisplayEl = document.getElementById('user-id-display');
-
-        // Check for Firebase environment variables
+        // Firebase configuration and initialization
+        // WARNING: Do not remove or modify the following lines. The environment variables are provided by the hosting service.
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-        let db, auth;
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // Function to initialize Firebase
-        async function initFirebase() {
-            if (!firebaseConfig) {
-                console.error("Firebase config is not defined. The app cannot function.");
-                return;
-            }
+        const totalViewsEl = document.getElementById('totalViews');
+        const pageListViewsEl = document.getElementById('pageListViews');
+        const userIdDisplayEl = document.getElementById('userIdDisplay');
 
+        // Main application logic
+        const init = async () => {
             try {
-                const app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
                 // Authenticate the user
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
@@ -106,80 +76,55 @@
                     await signInAnonymously(auth);
                 }
 
-                const userId = auth.currentUser?.uid || crypto.randomUUID();
-                userIdDisplayEl.textContent = `User ID: ${userId}`;
-                
-                // Once authenticated, start listening for data
-                setupRealtimeListeners(userId);
-            } catch (error) {
-                console.error("Error initializing Firebase or signing in:", error);
-                userIdDisplayEl.textContent = "Authentication failed.";
-            }
-        }
+                const userId = auth.currentUser?.uid || 'anonymous';
+                userIdDisplayEl.textContent = userId;
 
-        // Function to set up Firestore realtime listeners
-        function setupRealtimeListeners(userId) {
-            if (!db) {
-                console.error("Firestore is not initialized.");
-                return;
-            }
-            
-            loadingEl.classList.remove('hidden');
-
-            const analyticsPath = `/artifacts/${appId}/public/data/analytics`;
-            
-            // Listen for total views
-            const totalViewsDocRef = doc(db, analyticsPath, 'total');
-            onSnapshot(totalViewsDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    totalViewsEl.textContent = docSnap.data().count;
-                } else {
-                    totalViewsEl.textContent = '0';
-                }
-            }, (error) => {
-                console.error("Error fetching total views:", error);
-            });
-
-            // Listen for top pages
-            const pagesColRef = collection(db, analyticsPath, 'pages', 'views');
-            const q = query(pagesColRef);
-
-            onSnapshot(q, (snapshot) => {
-                loadingEl.classList.add('hidden');
-                pagesListEl.innerHTML = '';
-                if (snapshot.empty) {
-                    noDataEl.classList.remove('hidden');
-                    return;
-                }
-                noDataEl.classList.add('hidden');
-
-                const pages = [];
-                snapshot.forEach((doc) => {
-                    pages.push({ path: doc.id.replace(/_/g, '/'), ...doc.data() });
+                // Listen for real-time total views
+                const totalViewsDocRef = doc(db, "artifacts", appId, "public", "data", "analytics", "total");
+                onSnapshot(totalViewsDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        totalViewsEl.textContent = docSnap.data().count || 0;
+                    } else {
+                        totalViewsEl.textContent = "0";
+                    }
                 });
 
-                // Sort pages by count in descending order
-                pages.sort((a, b) => b.count - a.count);
+                // Listen for real-time page views
+                const pagesCollectionRef = collection(db, "artifacts", appId, "public", "data", "analytics", "pages");
+                const pageQuery = query(pagesCollectionRef);
 
-                pages.forEach(page => {
-                    const listItem = document.createElement('li');
-                    listItem.className = 'py-4 flex justify-between items-center';
-                    listItem.innerHTML = `
-                        <span class="text-lg text-gray-700">${page.path}</span>
-                        <span class="text-xl font-semibold text-gray-900">${page.count} views</span>
-                    `;
-                    pagesListEl.appendChild(listItem);
+                onSnapshot(pageQuery, (snapshot) => {
+                    if (snapshot.empty) {
+                        pageListViewsEl.innerHTML = '<li class="py-3 text-center text-gray-400">No page views recorded yet.</li>';
+                        return;
+                    }
+                    
+                    const pages = [];
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        pages.push({ path: data.pagePath, views: data.count });
+                    });
+
+                    // Sort pages by view count in descending order
+                    pages.sort((a, b) => b.views - a.views);
+                    
+                    // Render the list
+                    pageListViewsEl.innerHTML = pages.map(page => `
+                        <li class="py-3 flex justify-between items-center px-4">
+                            <span class="truncate text-gray-600">${page.path}</span>
+                            <span class="font-semibold text-lg text-gray-800">${page.views}</span>
+                        </li>
+                    `).join('');
                 });
-            }, (error) => {
-                console.error("Error fetching pages data:", error);
-                loadingEl.classList.add('hidden');
-                noDataEl.classList.remove('hidden');
-                noDataEl.textContent = "Error loading data.";
-            });
-        }
 
-        // Initialize on window load
-        window.addEventListener('load', initFirebase);
+            } catch (e) {
+                console.error("Error during initialization: ", e);
+                userIdDisplayEl.textContent = "Error";
+                pageListViewsEl.innerHTML = `<li class="py-3 text-center text-red-500">Failed to load data. Please check the console for errors.</li>`;
+            }
+        };
+
+        init();
     </script>
 </body>
 </html>
